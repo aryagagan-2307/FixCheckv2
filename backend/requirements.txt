@@ -1,0 +1,9 @@
+# Core: enough to run the whole app in DEMO mode (no ML models)
+fastapi>=0.110
+uvicorn>=0.29
+python-multipart>=0.0.9
+pillow>=10.0
+imagehash>=4.3
+sqlmodel>=0.0.22
+pydantic>=2.5
+numpy>=1.24

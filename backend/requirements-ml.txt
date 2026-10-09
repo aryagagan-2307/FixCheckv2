@@ -1,0 +1,4 @@
+# Real models (install after requirements.txt). Large download.
+torch
+transformers
+ultralytics

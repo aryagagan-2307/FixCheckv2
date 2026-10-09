@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FixCheck</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Crect width='34' height='34' rx='8' fill='%2313283D'/%3E%3Cpath d='M8 18.5l6 6L26.5 10' fill='none' stroke='%23F26A1B' stroke-width='4.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:#13283D; --ink-soft:#8FA3B8; --paper:#EDF0F3; --surface:#fff; --line:#D5DBE2; --muted:#566475;
+    --signal:#F26A1B;
+    --pass:#17714B; --pass-bg:#DFF1E8; --fail:#B8322A; --fail-bg:#F9E3E0;
+    --wait:#245F9E; --wait-bg:#DEEAF7; --warn:#80530A; --warn-bg:#FCEBC4;
+    --font:"Archivo", system-ui, "Segoe UI", Arial, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; font-family:var(--font); font-size:16px; line-height:1.5; color:var(--ink); background:var(--paper); }
+  h1, h2, h3, h4 { margin:0; font-stretch:125%; font-weight:800; letter-spacing:-.01em; line-height:1.15; }
+  h2 { font-size:clamp(24px, 4vw, 34px); }
+  h3 { font-size:18px; }
+  h4 { font-size:14px; font-stretch:112%; font-weight:700; }
+  p { margin:0; }
+  [hidden] { display:none !important; }
+  button, input, select { font:inherit; color:inherit; }
+  :focus-visible { outline:3px solid var(--signal); outline-offset:2px; }
+  .muted { color:var(--muted); font-size:14.5px; }
+  .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+  /* ---------- top bar ---------- */
+  .top { background:var(--ink); color:#fff; }
+  .top-in { max-width:1120px; margin:0 auto; padding:16px 20px 0; }
+  .brand { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .brand svg { width:34px; height:34px; flex:none; }
+  .brand h1 { font-size:24px; }
+  .brand .tag { color:var(--ink-soft); font-size:15px; }
+  #mode { margin-left:auto; font-size:13px; font-weight:600; padding:4px 11px; border-radius:99px; background:#24405B; color:#DCE6F0; }
+  #mode.demo { background:var(--warn-bg); color:var(--warn); }
+  nav { display:flex; gap:2px; margin-top:14px; overflow-x:auto; }
+  nav button { background:none; border:0; border-bottom:3px solid transparent; color:var(--ink-soft); padding:10px 14px 11px; cursor:pointer; font-weight:600; white-space:nowrap; }
+  nav button:hover { color:#fff; }
+  nav button.on { color:#fff; border-bottom-color:var(--signal); }
+
+  main { max-width:1120px; margin:0 auto; padding:28px 20px 64px; }
+  section { display:none; } section.on { display:block; }
+  .lede { margin-top:6px; max-width:60ch; }
+
+  /* ---------- form controls ---------- */
+  label.f, .f > span { display:block; font-weight:600; font-size:14.5px; margin:18px 0 6px; }
+  input[type=text], input[type=number], input:not([type]), select {
+    width:100%; padding:11px 12px; border:1.5px solid var(--line); border-radius:8px; background:#fff; }
+  input:focus, select:focus { border-color:var(--ink); }
+  input[type=file] { display:block; width:100%; margin-top:8px; padding:9px; border:1.5px solid var(--line); border-radius:8px; background:#fff; }
+  input[type=file]::file-selector-button { margin-right:12px; padding:7px 14px; border:0; border-radius:6px; background:var(--ink); color:#fff; font-weight:600; cursor:pointer; }
+  .row { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:14px; }
+  .row.inline { align-items:end; max-width:420px; } .row.inline label.f { margin-top:18px; }
+  .check { display:flex; align-items:center; gap:10px; margin:0; font-weight:500; cursor:pointer; }
+  .check input { width:20px; height:20px; accent-color:var(--ink); margin:0; }
+
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:10px 20px; border-radius:8px; border:1.5px solid var(--ink);
+         background:var(--ink); color:#fff; font-weight:700; cursor:pointer; margin-top:16px; }
+  .btn:hover { background:#1c3a57; }
+  .btn.sec { background:transparent; color:var(--ink); border-color:var(--line); font-weight:600; }
+  .btn.sec:hover { border-color:var(--ink); background:#fff; }
+  .btn.green { background:var(--pass); border-color:var(--pass); }
+  .btn.red { background:var(--fail); border-color:var(--fail); }
+  .btn.sm { min-height:38px; padding:6px 14px; margin:0; font-size:14.5px; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+
+  /* ---------- report ---------- */
+  .report-grid { display:grid; grid-template-columns:minmax(0, 1.15fr) minmax(0, .85fr); gap:44px; margin-top:24px; align-items:start; }
+  .tiles { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; }
+  .tile { position:relative; }
+  .tile input { position:absolute; opacity:0; inset:0; width:100%; height:100%; cursor:pointer; margin:0; }
+  .tile span { display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 6px; border:1.5px solid var(--line); border-radius:10px; background:#fff; font-weight:600; font-size:14px; text-align:center; }
+  .tile input:checked + span { border-color:var(--ink); background:var(--ink); color:#fff; }
+  .tile input:focus-visible + span { outline:3px solid var(--signal); outline-offset:2px; }
+  .ico { width:28px; height:28px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+  .hint { margin-top:10px; padding:10px 12px; border-left:4px solid var(--signal); background:#fff; border-radius:0 8px 8px 0; font-size:14.5px; }
+  .drop { display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px; min-height:132px; padding:14px; border:2px dashed #AAB6C3; border-radius:12px; background:#fff;
+          cursor:pointer; text-align:center; font-weight:600; position:relative; overflow:hidden; }
+  .drop:hover { border-color:var(--ink); }
+  .drop:focus-within { outline:3px solid var(--signal); outline-offset:2px; }
+  .drop input { position:absolute; opacity:0; inset:0; width:100%; height:100%; cursor:pointer; }
+  .drop img { max-height:240px; max-width:100%; border-radius:8px; display:block; }
+  .drop small { font-weight:400; color:var(--muted); }
+  .steps { margin:0; padding:0; list-style:none; counter-reset:s; border-top:1.5px solid var(--ink); }
+  .steps li { counter-increment:s; display:grid; grid-template-columns:34px 1fr; padding:14px 0; border-bottom:1px solid var(--line); }
+  .steps li::before { content:counter(s); font-stretch:125%; font-weight:800; color:var(--signal); font-size:20px; line-height:1.2; }
+  .steps b { display:block; }
+  .side h3 { margin-bottom:12px; }
+
+  .notice { margin-top:22px; padding:16px 18px; border-radius:10px; border:1.5px solid; }
+  .notice.ok { background:var(--pass-bg); border-color:#9BD2B6; } .notice.bad { background:var(--fail-bg); border-color:#E5A8A1; }
+  .notice.warn { background:var(--warn-bg); border-color:#E6C77A; }
+  .notice b.t { font-stretch:112%; font-weight:800; display:block; font-size:17px; margin-bottom:4px; }
+  .notice .chips { margin-top:10px; }
+  .notice .btn { margin-top:12px; }
+
+  /* ---------- chips, badges, priority ---------- */
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { display:inline-block; padding:2px 9px; border-radius:6px; font-size:13px; background:#E3E8ED; color:#2B3F52; }
+  .chip.model { background:var(--ink); color:#fff; font-weight:600; }
+  .chip.warn { background:var(--warn-bg); color:var(--warn); }
+  .badge { display:inline-block; padding:2px 10px; border-radius:99px; font-size:13px; font-weight:700; white-space:nowrap; }
+  .badge.open { background:var(--warn-bg); color:var(--warn); } .badge.reopened { background:var(--fail-bg); color:var(--fail); }
+  .badge.closed_pending { background:var(--wait-bg); color:var(--wait); } .badge.closed { background:var(--pass-bg); color:var(--pass); }
+  .badge.disp { background:var(--fail); color:#fff; }
+  .prio { display:flex; align-items:center; gap:10px; min-width:110px; }
+  .prio b { font-stretch:125%; font-weight:800; font-size:20px; min-width:2.4ch; }
+  .meter { flex:1; height:8px; border-radius:99px; background:#DCE2E8; overflow:hidden; }
+  .meter i { display:block; height:100%; border-radius:99px; background:var(--ink-soft); transition:width .5s ease; }
+  .prio.mid .meter i { background:#E39A2B; } .prio.hi .meter i { background:var(--signal); }
+
+  /* ---------- dashboard ---------- */
+  .stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:0; margin-top:22px; border-top:1.5px solid var(--ink); border-bottom:1px solid var(--line); background:#fff; }
+  .stat { padding:14px 16px; border-right:1px solid var(--line); }
+  .stat:last-child { border-right:0; }
+  .stat b { display:block; font-stretch:125%; font-weight:800; font-size:30px; line-height:1.1; }
+  .stat span { font-size:14px; color:var(--muted); }
+  .stat.alert b { color:var(--fail); }
+  .toolbar { display:flex; gap:12px 20px; align-items:center; flex-wrap:wrap; margin-top:20px; }
+  .toolbar .spacer { margin-left:auto; }
+  table.q { width:100%; border-collapse:collapse; margin-top:12px; background:#fff; }
+  table.q th { text-align:left; font-size:13.5px; font-weight:600; color:var(--muted); padding:10px 14px; border-bottom:1.5px solid var(--ink); }
+  table.q td.age-cell { white-space:nowrap; }
+  table.q td { padding:14px; border-bottom:1px solid var(--line); vertical-align:top; }
+  table.q tr.click { cursor:pointer; } table.q tr.click:hover td { background:#F6F8FA; }
+  table.q tr.click:focus-visible { outline:3px solid var(--signal); outline-offset:-3px; }
+  .kind { display:flex; gap:10px; align-items:flex-start; }
+  .kind .ico { margin-top:2px; color:var(--muted); }
+  .kind b { display:block; line-height:1.3; }
+  .num { color:var(--muted); font-weight:600; }
+  .empty { padding:36px 14px; text-align:center; background:#fff; border-bottom:1px solid var(--line); }
+
+  /* ---------- case file ---------- */
+  .notice + .back { margin-top:16px; }
+  .back { background:none; border:0; padding:0; margin-bottom:14px; color:var(--muted); font-weight:600; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+  .case-head { display:flex; gap:20px; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; margin-top:6px; }
+  .case-head h2 { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .case-head .ico { width:36px; height:36px; }
+  .age { text-align:right; }
+  .age b { display:block; font-stretch:125%; font-weight:800; font-size:clamp(34px, 6vw, 48px); line-height:1; }
+  .case-prio { display:grid; grid-template-columns:minmax(150px, 220px) 1fr; gap:14px 24px; align-items:center; margin-top:20px; padding:16px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+  .evidence { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:16px; margin-top:24px; }
+  .evidence figure { margin:0; }
+  .evidence figcaption { margin-bottom:8px; }
+  .evidence img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:10px; background:#D5DBE2; display:block; }
+  .evidence .none { aspect-ratio:4/3; border-radius:10px; border:1.5px dashed #B5C0CC; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:14px; }
+  .verdict { margin-top:26px; }
+  .verdict ul { list-style:none; margin:12px 0 0; padding:0; border-top:1.5px solid var(--ink); background:#fff; }
+  .chk { display:grid; grid-template-columns:28px 1fr; gap:12px; padding:13px 14px; border-bottom:1px solid var(--line); }
+  .chk .mark { width:24px; height:24px; border-radius:50%; display:grid; place-items:center; color:#fff; font-weight:800; font-size:14px; background:var(--pass); }
+  .chk.fail .mark { background:var(--fail); }
+  .chk.fail { background:var(--fail-bg); }
+  .chk small { display:block; color:#7C2A24; }
+  .verdict .end { margin-top:10px; font-weight:700; }
+  .verdict .end.pass { color:var(--pass); } .verdict .end.fail { color:var(--fail); }
+  .reveal .chk { animation:run .35s ease both; }
+  .reveal .chk:nth-child(2) { animation-delay:.35s; } .reveal .chk:nth-child(3) { animation-delay:.7s; } .reveal .chk:nth-child(4) { animation-delay:1.05s; }
+  @keyframes run { from { opacity:0; transform:translateX(-10px); } to { opacity:1; transform:none; } }
+  .panel { margin-top:26px; padding:20px; background:#fff; border-radius:12px; border:1px solid var(--line); }
+  .panel h3 { margin-bottom:4px; }
+  .timeline { margin-top:30px; }
+  ol.tl { list-style:none; margin:16px 0 0 6px; padding:0 0 0 18px; border-left:2px solid var(--line); }
+  ol.tl li { position:relative; padding:0 0 20px 18px; }
+  ol.tl li::before { content:""; position:absolute; left:-25px; top:5px; width:12px; height:12px; border-radius:50%; background:#8796A6; border:2px solid var(--paper); }
+  ol.tl li.rejected::before, ol.tl li.disputed::before { background:var(--fail); }
+  ol.tl li.closed::before, ol.tl li.fix_submitted::before { background:var(--pass); }
+  ol.tl li.duplicate::before { background:var(--wait); }
+  ol.tl time { display:block; font-size:13px; color:var(--muted); }
+  ol.tl img { display:block; margin-top:8px; width:120px; aspect-ratio:4/3; object-fit:cover; border-radius:6px; }
+
+  @media (max-width:860px) {
+    .report-grid { grid-template-columns:1fr; gap:30px; }
+    .case-prio { grid-template-columns:1fr; }
+    .age { text-align:left; }
+  }
+  @media (max-width:760px) {
+    main { padding-top:22px; }
+    table.q thead { display:none; }
+    table.q, table.q tbody, table.q tr, table.q td { display:block; }
+    table.q tr { padding:12px 14px; border-bottom:1px solid var(--line); }
+    table.q td { padding:4px 0; border:0; }
+    .stat { border-right:0; border-bottom:1px solid var(--line); }
+    .tiles { grid-template-columns:repeat(2, 1fr); }
+    .toolbar .spacer { margin-left:0; }
+  }
+  @media (max-width:480px) {
+    nav { display:grid; grid-template-columns:repeat(3, 1fr); overflow:visible; }
+    nav button { padding:8px 4px 10px; font-size:14px; white-space:normal; line-height:1.25; text-align:center; }
+    .top-in, main { padding-left:16px; padding-right:16px; }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    .reveal .chk { animation:none; }
+    .meter i { transition:none; }
+  }
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <div class="brand">
+    <svg viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="8" fill="#fff"/><path d="M8 18.5l6 6L26.5 10" fill="none" stroke="#F26A1B" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <h1>FixCheck</h1><span class="tag">Closed should mean fixed</span>
+    <span id="mode">Checking models...</span>
+  </div>
+  <nav aria-label="Pages">
+    <button data-tab="report" class="on">Report a problem</button>
+    <button data-tab="dash">Officer dashboard</button>
+    <button data-tab="track">Track a complaint</button>
+  </nav>
+</div></header>
+<main>
+
+<!-- REPORT -->
+<section id="tab-report" class="on">
+  <h2>Report a problem</h2>
+  <p class="muted lede">Take a photo of the problem. We check it, merge it with nearby reports, and give it a priority officers can explain.</p>
+  <div class="report-grid">
+    <form id="reportForm">
+      <div class="f"><span id="catLabel">What is the problem?</span>
+        <div class="tiles" role="radiogroup" aria-labelledby="catLabel" id="tiles"></div>
+        <p class="hint" id="photoHint"></p></div>
+      <div class="f"><span>Photo</span>
+        <label class="drop" id="drop"><input type="file" name="photo" accept="image/*" capture="environment" required>
+          <span id="dropText">Take or choose a photo</span><small id="dropSmall">On a phone this opens the camera</small>
+          <img id="preview" alt="Preview of your photo" hidden></label></div>
+      <div class="row">
+        <label class="f">Latitude<input name="lat" value="13.0827" inputmode="decimal" required></label>
+        <label class="f">Longitude<input name="lon" value="80.2707" inputmode="decimal" required></label>
+      </div>
+      <button type="button" class="btn sec sm" id="geoBtn" style="margin-top:10px">Use my location</button>
+      <label class="f">Ward (optional)<input name="ward" placeholder="e.g. Ward 12"></label>
+      <label class="check" style="margin-top:16px"><input type="checkbox" name="near_school" id="nearSchool"> Near a school or hospital</label>
+      <button class="btn" type="submit">Submit report</button>
+      <div id="reportResult" role="status" aria-live="polite"></div>
+    </form>
+    <aside class="side">
+      <h3>What happens to your report</h3>
+      <ol class="steps">
+        <li><div><b>We check the photo is new</b><span class="muted">Photos reused from other complaints are rejected.</span></div></li>
+        <li><div><b>We look for the problem</b><span class="muted">If we cannot see it clearly, we ask you to retake the photo.</span></div></li>
+        <li><div><b>We merge nearby reports</b><span class="muted">Same problem within 50 m becomes one complaint with more weight.</span></div></li>
+        <li><div><b>It gets a priority</b><span class="muted">Based on what the photo shows, school nearby, duplicates, age and rain. Officers see the reasons.</span></div></li>
+      </ol>
+      <p class="muted" id="demoNote" style="margin-top:16px" hidden>Demo mode: file names decide the result. Names containing "fixed", "clean", "random" or "blurry" count as not showing the problem.</p>
+    </aside>
+  </div>
+</section>
+
+<!-- DASHBOARD -->
+<section id="tab-dash">
+  <h2>Officer dashboard</h2>
+  <div class="stats" id="stats"></div>
+  <div class="toolbar">
+    <label class="check"><input type="checkbox" id="rain"> Rain expected</label>
+    <label class="check"><input type="checkbox" id="showClosed"> Show closed</label>
+    <span class="spacer"></span>
+    <button class="btn sec sm" id="refresh">Refresh</button>
+    <button class="btn sec sm" id="seedBtn">Load demo data (clears everything)</button>
+  </div>
+  <table class="q"><thead><tr><th>#</th><th>Problem</th><th>Status</th><th>Priority</th><th>Why</th><th>Age</th></tr></thead><tbody id="rows"></tbody></table>
+  <div class="empty" id="emptyMsg" hidden></div>
+</section>
+
+<!-- TRACK -->
+<section id="tab-track">
+  <h2>Track a complaint</h2>
+  <div class="row inline">
+    <label class="f">Complaint number<input id="trackId" type="number" min="1"></label>
+    <div><button class="btn" id="trackGo" style="margin-top:0; width:100%">Open</button></div>
+  </div>
+  <div id="detail"></div>
+</section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const CAT = {pothole:'Pothole', garbage:'Garbage', streetlight:'Streetlight', waterlogging:'Waterlogging'};
+const PATH = {
+  pothole:'<path d="M5 21 9 3M19 21 15 3"/><ellipse cx="12" cy="15.5" rx="4.2" ry="2.1"/>',
+  garbage:'<path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5M14 11v5"/>',
+  streetlight:'<path d="M7 21h8M11 21V8c0-2.5 2-4 6-4M17 4v3.5M14.5 7.5h5"/>',
+  waterlogging:'<path d="M3 8.5c2.2 0 2.2 2 4.5 2s2.3-2 4.5-2 2.3 2 4.5 2 2.3-2 4.5-2M3 15c2.2 0 2.2 2 4.5 2s2.3-2 4.5-2 2.3 2 4.5 2 2.3-2 4.5-2"/>'
+};
+const icon = c => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${PATH[c]}</svg>`;
+const HINT = {
+  pothole: 'Stand 1-2 m back so the whole pothole and some road around it are in the frame.',
+  garbage: 'Show the whole pile and the road or footpath it sits on, not a close-up of one item.',
+  streetlight: 'Take this after dark, with the pole and the lamp in the frame. A daytime photo cannot show a lamp is off.',
+  waterlogging: 'Show the water and the road edge or a nearby object, so the depth is visible.'
+};
+
+async function api(path, opts) {
+  const r = await fetch('/api' + path, opts);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.detail || r.statusText);
+  return j;
+}
+function fmtAge(ms) {
+  const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60);
+  return d ? `${d}d ${h}h` : h ? `${h}h ${m % 60}m` : `${m}m`;
+}
+setInterval(() => document.querySelectorAll('[data-created]').forEach(e => e.textContent = fmtAge(Date.now() - Date.parse(e.dataset.created))), 20000);
+
+const lvl = p => p >= 60 ? 'hi' : p >= 35 ? 'mid' : 'lo';
+const prio = p => `<div class="prio ${lvl(p)}"><b>${p}</b><span class="meter" aria-hidden="true"><i style="width:${Math.min(100, p)}%"></i></span></div>`;
+const badge = c => `<span class="badge ${c.status}">${esc(c.status_label)}</span>${c.public_disputed ? ' <span class="badge disp">Disputed</span>' : ''}`;
+function chips(c) {
+  const m = c.measures || {}, notes = new Set(m.notes || []);
+  return `<div class="chips">${c.reasons.map(x =>
+    `<span class="chip ${m.summary && x === m.summary ? 'model' : notes.has(x) ? 'warn' : ''}">${esc(x)}</span>`).join('')}</div>`;
+}
+
+// ---------- tabs ----------
+function show(tab) {
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  document.querySelectorAll('section').forEach(s => s.classList.toggle('on', s.id === 'tab-' + tab));
+  if (tab === 'dash') loadList();
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => show(b.dataset.tab));
+
+// ---------- model status ----------
+api('/status').then(s => {
+  const el = $('#mode');
+  el.textContent = s.mode === 'demo' ? 'Demo mode: models not loaded' : s.mode === 'live' ? 'Live models' : 'Partly live models';
+  el.className = s.mode === 'live' ? '' : 'demo';
+  el.title = JSON.stringify(s.engines) + ' ' + s.notes.join(' ');
+  $('#demoNote').hidden = s.mode !== 'demo';
+}).catch(() => { $('#mode').textContent = 'Server not reachable'; $('#mode').className = 'demo'; });
+
+// ---------- report form ----------
+const form = $('#reportForm');
+$('#tiles').innerHTML = Object.keys(CAT).map((c, i) =>
+  `<label class="tile"><input type="radio" name="category" value="${c}" ${i ? '' : 'checked'}><span>${icon(c)}${CAT[c]}</span></label>`).join('');
+const syncHint = () => { $('#photoHint').textContent = HINT[form.category.value]; };
+form.addEventListener('change', e => { if (e.target.name === 'category') syncHint(); });
+syncHint();
+
+const fileIn = form.photo, prev = $('#preview');
+fileIn.addEventListener('change', () => {
+  const f = fileIn.files[0];
+  prev.hidden = !f; $('#dropText').hidden = !!f; $('#dropSmall').hidden = !!f;
+  if (f) prev.src = URL.createObjectURL(f);
+});
+form.addEventListener('reset', () => { prev.hidden = true; $('#dropText').hidden = false; $('#dropSmall').hidden = false; setTimeout(syncHint); });
+
+function geo(latEl, lonEl) {
+  navigator.geolocation ? navigator.geolocation.getCurrentPosition(
+    p => { latEl.value = p.coords.latitude.toFixed(6); lonEl.value = p.coords.longitude.toFixed(6); },
+    () => alert('Could not get your location. Type the coordinates instead.')) : alert('This browser cannot share your location. Type the coordinates instead.');
+}
+$('#geoBtn').onclick = () => geo(form.lat, form.lon);
+
+form.onsubmit = async e => {
+  e.preventDefault();
+  const fd = new FormData(form);
+  fd.set('near_school', $('#nearSchool').checked ? 'true' : 'false');
+  const out = $('#reportResult');
+  out.innerHTML = '<div class="notice warn">Checking the photo...</div>';
+  try {
+    const r = await api('/complaints', { method: 'POST', body: fd });
+    if (!r.accepted) { out.innerHTML = `<div class="notice bad"><b class="t">Not accepted</b>${esc(r.message)}</div>`; return; }
+    const c = r.complaint;
+    out.innerHTML = `<div class="notice ${r.merged ? 'warn' : 'ok'}">
+      <b class="t">${r.merged ? `Already reported nearby. Merged into complaint #${c.id}` : `Complaint #${c.id} verified and filed`}</b>
+      ${r.merged ? `Duplicate reports: ${c.duplicate_count}. ` : ''}${CAT[c.category]} seen with ${Math.round(c.confidence * 100)}% confidence. Priority ${c.priority}.
+      <div class="chips">${c.reasons.map(x => `<span class="chip">${esc(x)}</span>`).join('')}</div>
+      <button type="button" class="btn sm" style="margin-top:12px" onclick="openDetail(${c.id})">Track it</button></div>`;
+    form.reset(); form.lat.value = '13.0827'; form.lon.value = '80.2707';
+  } catch (err) { out.innerHTML = `<div class="notice bad"><b class="t">Something went wrong</b>${esc(err.message)}</div>`; }
+};
+
+// ---------- dashboard ----------
+async function loadList() {
+  const rain = $('#rain').checked, showClosed = $('#showClosed').checked;
+  const all = await api('/complaints?rain=' + rain);
+  const items = all.filter(c => showClosed || c.status !== 'closed');
+  const n = s => all.filter(c => s.includes(c.status)).length;
+  $('#stats').innerHTML = [
+    ['Need action', n(['open', 'reopened']), ''], ['Reopened after bad closure', n(['reopened']), n(['reopened']) ? 'alert' : ''],
+    ['Waiting for resident', n(['closed_pending']), ''], ['Closed and confirmed', n(['closed']), '']
+  ].map(([l, v, k]) => `<div class="stat ${k}"><b>${v}</b><span>${l}</span></div>`).join('');
+  $('#rows').innerHTML = items.map(c => `<tr class="click" tabindex="0" onclick="openDetail(${c.id})" onkeydown="if(event.key==='Enter')openDetail(${c.id})">
+    <td class="num">${c.id}</td>
+    <td><div class="kind">${icon(c.category)}<div><b>${CAT[c.category]}</b><span class="muted">${esc(c.ward) || 'No ward'}</span></div></div></td>
+    <td>${badge(c)}${c.reopen_count ? `<div class="muted">Reopened ${c.reopen_count}x</div>` : ''}</td>
+    <td>${prio(c.priority)}</td>
+    <td>${chips(c)}</td>
+    <td class="age-cell"><span data-created="${c.created_at}">${fmtAge(Date.now() - Date.parse(c.created_at))}</span></td></tr>`).join('');
+  const em = $('#emptyMsg');
+  em.hidden = items.length > 0;
+  em.textContent = 'No complaints to show. Report one, or press "Load demo data".';
+}
+$('#rain').onchange = $('#showClosed').onchange = $('#refresh').onclick = loadList;
+$('#seedBtn').onclick = async () => {
+  if (!confirm('This deletes all current complaints and loads demo data. Continue?')) return;
+  await api('/demo/seed', { method: 'POST' }); loadList();
+};
+
+// ---------- case file ----------
+window.openDetail = async (id, banner = '') => { $('#trackId').value = id; show('track'); await renderDetail(id, banner); };
+$('#trackGo').onclick = () => renderDetail($('#trackId').value);
+const photo = (n, empty) => n ? `<img src="/uploads/${esc(n)}" alt="">` : `<div class="none">${empty}</div>`;
+const CHECKS = [
+  ['location', 'Photo taken at the complaint location'],
+  ['same_as_original', 'Different from the original complaint photo'],
+  ['reused', 'Not used before on another case'],
+  ['still_visible', 'Problem no longer visible']
+];
+function verdict(last, reveal) {
+  if (!last) return '';
+  const rows = CHECKS.map(([code, label]) => {
+    const f = last.failures.find(x => x.code === code);
+    return `<li class="chk ${f ? 'fail' : ''}"><span class="mark" aria-hidden="true">${f ? '&times;' : '&#10003;'}</span>
+      <div>${esc(label)}<span class="sr">${f ? ': failed' : ': passed'}</span>${f ? `<small>${esc(f.text)}</small>` : ''}</div></li>`;
+  }).join('');
+  return `<div class="verdict ${reveal ? 'reveal' : ''}"><h3>Automatic checks on the latest closure</h3><ul>${rows}</ul>
+    <p class="end ${last.passed ? 'pass' : 'fail'}">${last.passed ? 'All checks passed. Waiting for the resident to confirm.' : 'Closure rejected. The complaint was reopened and its age kept running.'}</p>
+    ${last.warnings.length ? `<div class="notice warn" style="margin-top:12px">${last.warnings.map(esc).join('<br>')}</div>` : ''}</div>`;
+}
+
+async function renderDetail(id, banner = '', reveal = false) {
+  const box = $('#detail');
+  try {
+    const c = await api('/complaints/' + id);
+    const last = c.attempts[c.attempts.length - 1];
+    box.innerHTML = `<div style="margin-top:22px">${banner}
+    <button class="back" onclick="show('dash')">Back to dashboard</button>
+    <div class="case-head">
+      <div><h2>${icon(c.category)} ${CAT[c.category]} #${c.id}</h2>
+        <p class="muted" style="margin-top:8px">${badge(c)} &nbsp;${esc(c.ward) || 'No ward'}${c.near_school ? ', near a school or hospital' : ''}, ${c.duplicate_count} duplicate report${c.duplicate_count === 1 ? '' : 's'}</p></div>
+      <div class="age"><span class="muted">Open since first filed. Never resets.</span><b data-created="${c.created_at}">${fmtAge(Date.now() - Date.parse(c.created_at))}</b></div>
+    </div>
+    <div class="case-prio"><div><span class="muted">Priority</span>${prio(c.priority)}</div>${chips(c)}</div>
+    ${c.escalation ? `<div class="notice bad"><b class="t">Reopened ${c.reopen_count}x</b>${esc(c.escalation)}</div>` : ''}
+    <div class="evidence">
+      <figure><figcaption><h4>Original complaint</h4></figcaption>${photo(c.photo, 'No photo')}</figure>
+      <figure><figcaption><h4>Claimed fix</h4></figcaption>${photo(last && last.photo, 'No fix submitted yet')}</figure>
+      <figure><figcaption><h4>Resident's check</h4></figcaption>${photo(c.dispute_photo, 'Not disputed')}</figure>
+    </div>
+    ${verdict(last, reveal)}
+    ${actions(c)}
+    <div class="timeline"><h3>Timeline</h3>
+    <ol class="tl">${c.events.map(e => `<li class="${esc(e.kind)}">${esc(e.text)}<time>${new Date(e.at).toLocaleString()}</time>
+      ${e.photo ? `<img src="/uploads/${esc(e.photo)}" alt="">` : ''}</li>`).reverse().join('')}</ol></div></div>`;
+    bindActions(c);
+  } catch (err) { box.innerHTML = `<div class="notice bad"><b class="t">Could not open that complaint</b>${esc(err.message)}</div>`; }
+}
+
+function actions(c) {
+  if (c.status === 'open' || c.status === 'reopened') return `
+    <div class="panel"><h3>Officer: close with proof</h3>
+      <p class="muted">Take the photo at the site. It is checked against the complaint's location, photo and problem.</p>
+      <form id="closeForm">
+        <label class="f">Proof photo (taken at the site)<input type="file" name="photo" accept="image/*" capture="environment" required></label>
+        <div class="row"><label class="f">Latitude<input name="lat" value="${c.lat.toFixed(6)}"></label><label class="f">Longitude<input name="lon" value="${c.lon.toFixed(6)}"></label></div>
+        <div class="actions" style="margin-top:12px">
+          <button type="button" class="btn sec sm" id="farBtn">Simulate: photo taken far away</button>
+          <button type="button" class="btn sec sm" id="nearBtn">Reset to complaint location</button></div>
+        <button class="btn green" type="submit">Close with proof</button>
+      </form></div>`;
+  if (c.status === 'closed_pending') return `
+    <div class="panel"><h3>Resident: is it really fixed?</h3>
+      <button class="btn green" id="confirmBtn" style="margin-top:12px">Yes, it is fixed</button>
+      <form id="disputeForm" style="margin-top:12px"><label class="f">No, it is not fixed. A photo is required as evidence.
+        <input type="file" name="photo" accept="image/*" capture="environment" required></label>
+        <button class="btn red" type="submit">Dispute with photo</button></form></div>`;
+  return '';
+}
+
+function bindActions(c) {
+  const cf = $('#closeForm');
+  if (cf) {
+    $('#farBtn').onclick = () => { cf.lat.value = (c.lat + 0.01).toFixed(6); };
+    $('#nearBtn').onclick = () => { cf.lat.value = c.lat.toFixed(6); cf.lon.value = c.lon.toFixed(6); };
+    cf.onsubmit = async e => {
+      e.preventDefault();
+      try {
+        const r = await api(`/complaints/${c.id}/close`, { method: 'POST', body: new FormData(cf) });
+        await renderDetail(c.id, r.passed
+          ? '<div class="notice ok"><b class="t">Proof accepted</b>Now waiting for the resident to confirm.</div>'
+          : '<div class="notice bad"><b class="t">Proof rejected</b>The complaint has been reopened automatically.</div>', true);
+      } catch (err) { alert(err.message); }
+    };
+  }
+  if ($('#confirmBtn')) $('#confirmBtn').onclick = async () => {
+    const fd = new FormData(); fd.set('confirmed', 'true');
+    await api(`/complaints/${c.id}/confirm`, { method: 'POST', body: fd });
+    renderDetail(c.id, '<div class="notice ok"><b class="t">Confirmed</b>Complaint closed.</div>');
+  };
+  const df = $('#disputeForm');
+  if (df) df.onsubmit = async e => {
+    e.preventDefault();
+    const fd = new FormData(df); fd.set('confirmed', 'false');
+    try {
+      await api(`/complaints/${c.id}/confirm`, { method: 'POST', body: fd });
+      renderDetail(c.id, '<div class="notice bad"><b class="t">Dispute recorded</b>Complaint reopened.</div>');
+    } catch (err) { alert(err.message); }
+  };
+}
+</script>
+</body>
+</html>
